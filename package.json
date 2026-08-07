@@ -1,0 +1,25 @@
+{
+  "name": "toolshed-skill",
+  "version": "1.0.0",
+  "description": "toolshed — an agent skill that records globally reusable local tools into ~/mem.md + ~/mem/<tool>.md",
+  "bin": {
+    "toolshed-skill": "bin/install.js"
+  },
+  "files": [
+    "bin",
+    "skill",
+    "README.md"
+  ],
+  "keywords": [
+    "claude",
+    "claude-code",
+    "agent",
+    "skill",
+    "toolshed",
+    "mem"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}
