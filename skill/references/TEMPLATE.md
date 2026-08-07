@@ -28,7 +28,7 @@ command -v <tool> && <tool> --version
 ```
 
 <一个 fenced bash 块，能一眼确认这东西还活着。有守护进程就检查 pidfile + ps；
-有服务就探端口。mem-doctor.sh 会自动提取并运行本段。>
+有服务就探端口。toolshed-doctor.sh 会自动提取并运行本段。>
 
 ## 注意事项
 

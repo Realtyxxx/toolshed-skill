@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# mem-doctor — 体检 ~/mem.md + ~/mem/*.md
+# toolshed-doctor — 体检 ~/toolshed.md + ~/toolshed.d/*.md
 #
 #   1. 每篇详细文档里的 `## 自查` bash 块，逐个实际执行 —— 工具还在不在
-#   2. 索引 ~/mem.md 有没有链到每一篇（漏登记 / 死链）
+#   2. 索引 ~/toolshed.md 有没有链到每一篇（漏登记 / 死链）
 #   3. 每篇有没有写 `## 自查` 段
 #
 # 用法：bash ~/.agents/skills/toolshed/scripts/toolshed-doctor.sh [-v]
@@ -13,16 +13,16 @@ set -uo pipefail
 
 # 防递归：doctor 会执行文档里的 `## 自查` 块。如果某篇文档在自查块里调了 doctor
 # 自己，就会无限自我繁殖（实测几秒钟内起了上千个进程）。嵌套调用直接拒绝。
-if [ -n "${MEM_DOCTOR_RUNNING:-}" ]; then
-    echo "mem-doctor: 检测到嵌套调用 —— 某篇文档的 ## 自查 块里调了 doctor 自己。" >&2
-    echo "            自查块只能写只读确认命令，不能调 doctor。已拒绝递归。" >&2
+if [ -n "${TOOLSHED_DOCTOR_RUNNING:-}" ]; then
+    echo "toolshed-doctor: 检测到嵌套调用 —— 某篇文档的 ## 自查 块里调了 doctor 自己。" >&2
+    echo "                 自查块只能写只读确认命令，不能调 doctor。已拒绝递归。" >&2
     exit 2
 fi
-export MEM_DOCTOR_RUNNING=1
+export TOOLSHED_DOCTOR_RUNNING=1
 
-MEM_INDEX="${MEM_INDEX:-$HOME/mem.md}"
-MEM_DIR="${MEM_DIR:-$HOME/mem}"
-CHECK_TIMEOUT="${MEM_CHECK_TIMEOUT:-30}"    # 单个自查块的执行上限，秒
+TOOLSHED_INDEX="${TOOLSHED_INDEX:-$HOME/toolshed.md}"
+TOOLSHED_DIR="${TOOLSHED_DIR:-$HOME/toolshed.d}"
+CHECK_TIMEOUT="${TOOLSHED_CHECK_TIMEOUT:-30}"    # 单个自查块的执行上限，秒
 VERBOSE=0
 [ "${1:-}" = "-v" ] && VERBOSE=1
 
@@ -31,8 +31,8 @@ RED=$'\033[31m'; GREEN=$'\033[32m'; YELLOW=$'\033[33m'; DIM=$'\033[2m'; OFF=$'\0
 
 fail=0; warn=0; pass=0
 
-[ -f "$MEM_INDEX" ] || { echo "${RED}没有索引 $MEM_INDEX${OFF}"; exit 1; }
-[ -d "$MEM_DIR" ]   || { echo "${RED}没有文档目录 $MEM_DIR${OFF}"; exit 1; }
+[ -f "$TOOLSHED_INDEX" ] || { echo "${RED}没有索引 $TOOLSHED_INDEX${OFF}"; exit 1; }
+[ -d "$TOOLSHED_DIR" ]   || { echo "${RED}没有文档目录 $TOOLSHED_DIR${OFF}"; exit 1; }
 
 # 抽出 `## 自查` 标题之后的第一个 fenced 代码块
 extract_selfcheck() {
@@ -44,13 +44,13 @@ extract_selfcheck() {
     ' "$1"
 }
 
-echo "索引 $MEM_INDEX"
-echo "文档 $MEM_DIR"
+echo "索引 $TOOLSHED_INDEX"
+echo "文档 $TOOLSHED_DIR"
 echo
 
 shopt -s nullglob
-docs=("$MEM_DIR"/*.md)
-[ ${#docs[@]} -gt 0 ] || { echo "${YELLOW}$MEM_DIR 下没有文档${OFF}"; exit 1; }
+docs=("$TOOLSHED_DIR"/*.md)
+[ ${#docs[@]} -gt 0 ] || { echo "${YELLOW}$TOOLSHED_DIR 下没有文档${OFF}"; exit 1; }
 
 for doc in "${docs[@]}"; do
     base=$(basename "$doc")
@@ -60,8 +60,8 @@ for doc in "${docs[@]}"; do
     printf '  %-28s ' "$name"
 
     # 1) 索引里有没有链到它
-    if ! grep -qF "mem/$base" "$MEM_INDEX"; then
-        echo "${YELLOW}索引缺链接${OFF}  (~/mem.md 里没有 mem/$base)"
+    if ! grep -qF "toolshed.d/$base" "$TOOLSHED_INDEX"; then
+        echo "${YELLOW}索引缺链接${OFF}  (~/toolshed.md 里没有 toolshed.d/$base)"
         warn=$((warn + 1))
         continue
     fi
@@ -96,12 +96,12 @@ done
 # 4) 索引里的死链
 echo
 while IFS= read -r target; do
-    [ -f "$MEM_DIR/$(basename "$target")" ] || {
-        echo "  ${RED}索引死链${OFF}  ~/mem.md → $target（文件不存在）"
+    [ -f "$TOOLSHED_DIR/$(basename "$target")" ] || {
+        echo "  ${RED}索引死链${OFF}  ~/toolshed.md → $target（文件不存在）"
         fail=$((fail + 1))
     }
-done < <(grep -o '](mem/[A-Za-z0-9._-]*\.md)' "$MEM_INDEX" |
-         sed 's|^](mem/||; s|)$||' | sort -u)
+done < <(grep -o '](toolshed\.d/[A-Za-z0-9._-]*\.md)' "$TOOLSHED_INDEX" |
+         sed 's|^](toolshed\.d/||; s|)$||' | sort -u)
 
 echo "${GREEN}$pass 通过${OFF}  ${YELLOW}$warn 警告${OFF}  ${RED}$fail 失败${OFF}"
 [ $fail -eq 0 ]

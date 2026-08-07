@@ -1,14 +1,14 @@
 ---
 name: toolshed
-description: Record a newly built or installed global/reusable tool into the user's local tool memory at ~/mem.md + ~/mem/<tool>.md. Use when you have just created, installed, or configured something that lives beyond this one task — a script placed on PATH (~/.local/bin, /usr/local/bin), a daemon or background service, a shell rc / login hook, a global config directory (~/.config/<tool>/, ~/.claude/, ~/.codex/), a globally registered skill / hook / MCP server / cron job, or any script designed for reuse across projects. Also use when the user says "记一下"/"记到 mem"/"写进 mem"/"更新 mem", when they ask what local tools exist or how one works, or before rebuilding something that may already exist. Do NOT use for one-off throwaway scripts, project-local code that ships with its repo, or plain usage of standard ecosystem commands.
+description: Record a newly built or installed global/reusable tool into the user's local tool memory at ~/toolshed.md + ~/toolshed.d/<tool>.md. Use when you have just created, installed, or configured something that lives beyond this one task — a script placed on PATH (~/.local/bin, /usr/local/bin), a daemon or background service, a shell rc / login hook, a global config directory (~/.config/<tool>/, ~/.claude/, ~/.codex/), a globally registered skill / hook / MCP server / cron job, or any script designed for reuse across projects. Also use when the user says "记一下"/"记到 toolshed"/"写进 toolshed"/"更新 toolshed", when they ask what local tools exist or how one works, or before rebuilding something that may already exist. Do NOT use for one-off throwaway scripts, project-local code that ships with its repo, or plain usage of standard ecosystem commands.
 ---
 
-# mem — 本机工具记忆
+# toolshed — 本机工具记忆
 
 本机上由 AI 搭建/安装的**全局、可复用**工具，统一记在两个地方：
 
-- `~/mem.md` —— 索引 + 命令速查。一个工具一段，几行就够，用来**路由**。
-- `~/mem/<tool>.md` —— 一个工具一篇详细文档：原理、全部常用命令、自查、踩坑。
+- `~/toolshed.md` —— 索引 + 命令速查。一个工具一段，几行就够，用来**路由**。
+- `~/toolshed.d/<tool>.md` —— 一个工具一篇详细文档：原理、全部常用命令、自查、踩坑。
 
 跨 agent 共享（claude / codex / gemini 都读得到），所以是普通 Markdown，不进任何 agent 私有的 memory 格式。
 
@@ -17,7 +17,7 @@ description: Record a newly built or installed global/reusable tool into the use
 动手记之前先看有没有：
 
 ```bash
-grep -il '<tool>' ~/mem.md ~/mem/*.md
+grep -il '<tool>' ~/toolshed.md ~/toolshed.d/*.md
 ```
 
 **已有条目就更新那一篇，绝不新建重复文件。** 更新时保留原有的踩坑段——那些是花代价换来的。
@@ -64,7 +64,7 @@ grep -il '<tool>' ~/mem.md ~/mem/*.md
 
 写完前自己核一遍：文档里出现的每个路径、端口、flag 都真实存在。
 
-### 详细文档：`~/mem/<tool>.md`
+### 详细文档：`~/toolshed.d/<tool>.md`
 
 骨架见 `references/TEMPLATE.md`，照它写。要点：
 
@@ -79,15 +79,15 @@ grep -il '<tool>' ~/mem.md ~/mem/*.md
 - 绝不写密钥本身（token、PAT、密码）。写"从哪拿"，不写值。
 - 日期写绝对日期（`2026-08-07`），不写"上周"。
 
-### 索引条目：`~/mem.md`
+### 索引条目：`~/toolshed.md`
 
-在 `~/mem.md` 追加一段：
+在 `~/toolshed.md` 追加一段：
 
 ```markdown
 ## <name> — <一句话定位>
 
 <什么场景下该想起它，一到两句>
-详细：[`~/mem/<name>.md`](mem/<name>.md)
+详细：[`~/toolshed.d/<name>.md`](toolshed.d/<name>.md)
 
 ​```bash
 <3-6 条最常用命令，带简短行内注释>
@@ -97,7 +97,7 @@ grep -il '<tool>' ~/mem.md ~/mem/*.md
 - **坑**：<一条最容易踩的>
 ```
 
-索引要能**独立完成路由**：光看 `~/mem.md` 就知道该不该点进详细文档。所以定位句要写场景，不要只写工具名的同义反复。
+索引要能**独立完成路由**：光看 `~/toolshed.md` 就知道该不该点进详细文档。所以定位句要写场景，不要只写工具名的同义反复。
 
 ## 第四步：验收
 
@@ -105,14 +105,14 @@ grep -il '<tool>' ~/mem.md ~/mem/*.md
 bash ~/.agents/skills/toolshed/scripts/toolshed-doctor.sh
 ```
 
-它会遍历 `~/mem/*.md`，跑每篇的 `## 自查` 块，并检查索引 `~/mem.md` 里有没有对应链接。新写完的条目应当全绿。
+它会遍历 `~/toolshed.d/*.md`，跑每篇的 `## 自查` 块，并检查索引 `~/toolshed.md` 里有没有对应链接。新写完的条目应当全绿。
 
-## 反向用法：干活前先查 mem
+## 反向用法：干活前先查 toolshed
 
 看到本机上不认识的命令、或者准备造一个可能已经存在的轮子时：
 
 ```bash
-grep -il '<关键词>' ~/mem.md ~/mem/*.md   # 命中就先读那一篇
+grep -il '<关键词>' ~/toolshed.md ~/toolshed.d/*.md   # 命中就先读那一篇
 ```
 
-`~/mem.md` 很短，不确定时整篇读掉比猜便宜。
+`~/toolshed.md` 很短，不确定时整篇读掉比猜便宜。
