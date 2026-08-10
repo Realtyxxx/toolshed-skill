@@ -8,12 +8,15 @@ trap 'rm -rf "$TEST_ROOT"' EXIT
 
 pass=0
 
+EXTRA_ENV=()
+
 new_case() {
     local name=$1
     CASE_HOME="$TEST_ROOT/$name/home"
     mkdir -p "$CASE_HOME/toolshed.d"
     CASE_INDEX="$CASE_HOME/toolshed.md"
     CASE_DIR="$CASE_HOME/toolshed.d"
+    EXTRA_ENV=()
 }
 
 run_expect() {
@@ -21,7 +24,7 @@ run_expect() {
     shift
     set +e
     OUTPUT=$(HOME="$CASE_HOME" TOOLSHED_INDEX="$CASE_INDEX" TOOLSHED_DIR="$CASE_DIR" \
-        bash "$DOCTOR" "$@" 2>&1)
+        env ${EXTRA_ENV[@]+"${EXTRA_ENV[@]}"} bash "$DOCTOR" "$@" 2>&1)
     RC=$?
     set -e
     if [ "$RC" -ne "$expected" ]; then
@@ -94,5 +97,50 @@ true
 EOF
 run_expect 2 --unknown
 [[ "$OUTPUT" == *"未知参数"* ]] || { echo "未知参数应被拒绝" >&2; exit 1; }
+
+# 没装 GNU coreutils 的 macOS 上没有 timeout(1)，--run-checks 必须退化成
+# 纯 bash 看门狗照常执行，而不是整体拒绝。TOOLSHED_TIMEOUT_CMD= 强制走这条路径。
+new_case run-checks-without-timeout-binary
+EXTRA_ENV=(TOOLSHED_TIMEOUT_CMD=)
+echo '[demo](toolshed.d/demo.md)' > "$CASE_INDEX"
+cat > "$CASE_DIR/demo.md" <<'EOF'
+## 自查
+
+```bash
+touch "$HOME/executed"
+```
+EOF
+run_expect 0 --run-checks
+[ -e "$CASE_HOME/executed" ] || { echo "无 timeout(1) 时也应执行自查" >&2; exit 1; }
+
+new_case watchdog-kills-slow-check
+EXTRA_ENV=(TOOLSHED_TIMEOUT_CMD= TOOLSHED_CHECK_TIMEOUT=1)
+echo '[demo](toolshed.d/demo.md)' > "$CASE_INDEX"
+cat > "$CASE_DIR/demo.md" <<'EOF'
+## 自查
+
+```bash
+sleep 30
+```
+EOF
+run_expect 1 --run-checks
+[[ "$OUTPUT" == *"自查超时"* ]] || { echo "看门狗应判超时" >&2; exit 1; }
+
+if command -v timeout >/dev/null 2>&1 || command -v gtimeout >/dev/null 2>&1; then
+    new_case timeout-binary-kills-slow-check
+    EXTRA_ENV=(TOOLSHED_CHECK_TIMEOUT=1)
+    echo '[demo](toolshed.d/demo.md)' > "$CASE_INDEX"
+    cat > "$CASE_DIR/demo.md" <<'EOF'
+## 自查
+
+```bash
+sleep 30
+```
+EOF
+    run_expect 1 --run-checks
+    [[ "$OUTPUT" == *"自查超时"* ]] || { echo "timeout(1) 应判超时" >&2; exit 1; }
+else
+    echo "跳过 timeout-binary-kills-slow-check：本机没有 timeout/gtimeout"
+fi
 
 echo "$pass tests passed"

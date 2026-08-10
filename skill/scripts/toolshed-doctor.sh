@@ -18,6 +18,10 @@ usage() {
   --run-checks  显式执行自查块；这些块是受信任的本地代码，不受沙箱保护
   -v            执行自查时同时打印成功命令的输出
   -h, --help    显示帮助
+
+环境变量：
+  TOOLSHED_CHECK_TIMEOUT  单个自查块的秒数上限（默认 30）
+  TOOLSHED_TIMEOUT_CMD    指定 timeout 实现；设为空串则强制用内置 bash 看门狗
 EOF
 }
 
@@ -57,10 +61,48 @@ esac
     exit 2
 }
 
-if [ "$RUN_CHECKS" -eq 1 ] && ! command -v timeout >/dev/null 2>&1; then
-    echo "toolshed-doctor: --run-checks 需要 timeout（GNU coreutils）" >&2
-    exit 2
+# timeout(1) 属于 GNU coreutils：macOS 默认没有，homebrew 装的叫 gtimeout。
+# 两个都没有时退化成纯 bash 看门狗，而不是拒绝执行 —— 否则 --run-checks 在
+# 未装 coreutils 的 macOS 上完全不可用。
+# TOOLSHED_TIMEOUT_CMD 可显式指定（设成空字符串即强制走看门狗）。
+if [ -n "${TOOLSHED_TIMEOUT_CMD+set}" ]; then
+    TIMEOUT_CMD="$TOOLSHED_TIMEOUT_CMD"
+else
+    TIMEOUT_CMD=""
+    for candidate in timeout gtimeout; do
+        if command -v "$candidate" >/dev/null 2>&1; then
+            TIMEOUT_CMD="$candidate"
+            break
+        fi
+    done
 fi
+
+# 跑一条命令，超过 $CHECK_TIMEOUT 秒杀掉。超时返回 124（timeout(1)）或
+# 137/143（看门狗的 KILL/TERM）。
+run_limited() {
+    if [ -n "$TIMEOUT_CMD" ]; then
+        "$TIMEOUT_CMD" -k 5 "$CHECK_TIMEOUT" "$@"
+        return $?
+    fi
+
+    "$@" &
+    local cmd_pid=$!
+    # 看门狗的 stdout 必须挪开：否则它会一直攥着调用方的命令替换管道不放，
+    # 自查秒回也得干等满一个超时周期。
+    (
+        sleep "$CHECK_TIMEOUT"
+        kill -TERM "$cmd_pid" 2>/dev/null
+        sleep 5
+        kill -KILL "$cmd_pid" 2>/dev/null
+    ) >/dev/null 2>&1 &
+    local watchdog_pid=$!
+
+    wait "$cmd_pid"
+    local rc=$?
+    kill -TERM "$watchdog_pid" 2>/dev/null
+    wait "$watchdog_pid" 2>/dev/null
+    return $rc
+}
 
 RED=$'\033[31m'; GREEN=$'\033[32m'; YELLOW=$'\033[33m'; DIM=$'\033[2m'; OFF=$'\033[0m'
 [ -t 1 ] || { RED=""; GREEN=""; YELLOW=""; DIM=""; OFF=""; }
@@ -162,12 +204,12 @@ for doc in "${docs[@]}"; do
         [ -n "$value" ] && run_env+=("$key=$value")
     done
 
-    out=$(cd "$HOME" && timeout -k 5 "$CHECK_TIMEOUT" "${run_env[@]}" \
+    out=$(cd "$HOME" && run_limited "${run_env[@]}" \
         bash --noprofile --norc -c "$check" 2>&1)
     rc=$?
 
     printf '  %-28s ' ""
-    if [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
+    if [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ] || [ "$rc" -eq 143 ]; then
         echo "${RED}自查超时 (>${CHECK_TIMEOUT}s)${OFF}"
         fail=$((fail + 1))
     elif [ "$rc" -eq 0 ]; then
