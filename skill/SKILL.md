@@ -1,6 +1,6 @@
 ---
 name: toolshed
-description: Record a newly built or installed global/reusable tool into the user's local tool memory at ~/toolshed.md + ~/toolshed.d/<tool>.md. Use when you have just created, installed, or configured something that lives beyond this one task — a script placed on PATH (~/.local/bin, /usr/local/bin), a daemon or background service, a shell rc / login hook, a global config directory (~/.config/<tool>/, ~/.claude/, ~/.codex/), a globally registered skill / hook / MCP server / cron job, or any script designed for reuse across projects. Also use when the user says "记一下"/"记到 toolshed"/"写进 toolshed"/"更新 toolshed", when they ask what local tools exist or how one works, or before rebuilding something that may already exist. Do NOT use for one-off throwaway scripts, project-local code that ships with its repo, or plain usage of standard ecosystem commands.
+description: Record a newly built or installed global/reusable tool into the user's local tool memory at ~/toolshed.md + ~/toolshed.d/TOOL.md. Use when you have just created, installed, or configured something that lives beyond this one task — a script placed on PATH (~/.local/bin, /usr/local/bin), a daemon or background service, a shell rc / login hook, a global config directory (~/.config/TOOL/, ~/.claude/, ~/.codex/), a globally registered skill / hook / MCP server / cron job, or any script designed for reuse across projects. Also use when the user says "记一下"/"记到 toolshed"/"写进 toolshed"/"更新 toolshed", when they ask what local tools exist or how one works, or before rebuilding something that may already exist. Do NOT use for one-off throwaway scripts, project-local code that ships with its repo, or plain usage of standard ecosystem commands.
 ---
 
 # toolshed — 本机工具记忆
@@ -70,14 +70,12 @@ grep -il '<tool>' ~/toolshed.md ~/toolshed.d/*.md
 
 - **开头两三句讲"解决什么问题、什么时候该想起它"**，不是讲它是什么。半年后翻到这里的人需要的是"我现在这个场景该不该用它"。
 - **常用命令只列你真的会用的那几条**，带上默认值陷阱（比如"默认只出前 200 条"）。不要抄 `--help` 全文——那是它自己的事。
-- **`## 自查` 段必须有**，一个 fenced bash 块，能一眼确认这东西还活着（`command -v` / `--version` / 检查 pidfile）。`scripts/toolshed-doctor.sh` 会自动提取并**实际执行**它们，所以：
-  - 只写**只读**命令。绝不启停服务、写文件、发网络请求。
-  - **绝不在自查块里调 `toolshed-doctor.sh` 自己**——doctor 正在执行这段，会无限自我繁殖（实测几秒起了上千个进程）。doctor 现在有嵌套护栏会拒绝，但别去撞它。
-  - 秒回。单块超过 30s 判超时失败。
-  - 标题必须正好是 `## 自查`，代码块必须是标题后的第一个 fenced 块——提取靠这个位置匹配。
+- **`## 自查` 段必须有**，其后的第一个 fenced block 必须明确标记为 `bash`，只放只读、秒回、不发网络请求的检查。
+- bundled `scripts/toolshed-doctor.sh` 默认只静态校验格式和链接；只有显式传入 `--run-checks` 才会打印并执行自查块。自查块是受信任的本地代码，不受沙箱保护。
+- **绝不在自查块里调 doctor 自己**；嵌套调用会被拒绝。
 - **`## 注意事项` 是全篇最有价值的一段。** 优先写：静默失败（坏了但不报错）、会被什么覆盖、默认截断、共享机器上的坑、改一处要同步改的另一处。
 - 绝不写密钥本身（token、PAT、密码）。写"从哪拿"，不写值。
-- 日期写绝对日期（`2026-08-07`），不写"上周"。
+- 日期写绝对日期（`2026-08-10`），不写"上周"。
 
 ### 索引条目：`~/toolshed.md`
 
@@ -101,11 +99,19 @@ grep -il '<tool>' ~/toolshed.md ~/toolshed.d/*.md
 
 ## 第四步：验收
 
+相对于本 `SKILL.md` 定位并运行 bundled doctor，不要假定 skill 安装在 `~/.agents`：
+
 ```bash
-bash ~/.agents/skills/toolshed/scripts/toolshed-doctor.sh
+bash <本 skill 目录>/scripts/toolshed-doctor.sh
 ```
 
-它会遍历 `~/toolshed.d/*.md`，跑每篇的 `## 自查` 块，并检查索引 `~/toolshed.md` 里有没有对应链接。新写完的条目应当全绿。
+默认模式只做静态校验，不执行 Markdown 里的命令。只有用户明确要求实际体检、且确认文档受信任时，才运行：
+
+```bash
+bash <本 skill 目录>/scripts/toolshed-doctor.sh --run-checks
+```
+
+缺索引链接、缺自查段、错误 fence 或死链都必须视为验收失败。
 
 ## 反向用法：干活前先查 toolshed
 

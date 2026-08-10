@@ -1,6 +1,6 @@
 {
   "name": "toolshed-skill",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "toolshed — an agent skill that records globally reusable local tools into ~/toolshed.md + ~/toolshed.d/<tool>.md",
   "bin": {
     "toolshed-skill": "bin/install.js"
@@ -10,6 +10,9 @@
     "skill",
     "README.md"
   ],
+  "scripts": {
+    "test": "bash tests/toolshed-doctor.test.sh"
+  },
   "keywords": [
     "claude",
     "claude-code",

@@ -27,8 +27,9 @@
 command -v <tool> && <tool> --version
 ```
 
-<一个 fenced bash 块，能一眼确认这东西还活着。有守护进程就检查 pidfile + ps；
-有服务就探端口。toolshed-doctor.sh 会自动提取并运行本段。>
+<标题必须正好是 `## 自查`，其后的第一个 fenced block 必须明确标记为 bash。
+默认 doctor 只静态校验；只有 `--run-checks` 才实际执行。本块属于受信任的本地代码，
+只能放只读、秒回、不发网络请求的检查。>
 
 ## 注意事项
 
