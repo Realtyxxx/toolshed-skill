@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 // 把 skill/ 安装到 agent 的 skills 目录下。默认 ~/.agents/skills/toolshed
-// —— SKILL.md 里的 doctor 路径就是按这个目录写死的。
 
 const fs = require('fs');
 const os = require('os');
@@ -53,4 +52,5 @@ const doctor = path.join(dest, 'scripts', 'toolshed-doctor.sh');
 if (fs.existsSync(doctor)) fs.chmodSync(doctor, 0o755);
 
 console.log(`已安装 toolshed skill → ${dest}`);
-console.log(`体检：bash ${doctor}`);
+console.log(`静态体检：bash ${doctor}`);
+console.log(`执行自查：bash ${doctor} --run-checks  # 仅执行受信任的本地代码`);
